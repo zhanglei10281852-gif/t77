@@ -9,6 +9,8 @@ import java.math.BigDecimal;
 @Data
 public class DisputeDTO {
 
+    private String sourceChannel;
+
     @NotNull(message = "纠纷类型不能为空")
     private String disputeType;
 

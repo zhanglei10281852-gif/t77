@@ -50,11 +50,18 @@ public class Dispute {
     private Long mediatorId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "source_channel", nullable = false)
+    private SourceChannel sourceChannel;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DisputeStatus status;
 
     @Column(columnDefinition = "TEXT")
     private String result;
+
+    @Column(name = "agreement_no")
+    private String agreementNo;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -69,6 +76,9 @@ public class Dispute {
         if (this.status == null) {
             this.status = DisputeStatus.待受理;
         }
+        if (this.sourceChannel == null) {
+            this.sourceChannel = SourceChannel.当事人申请;
+        }
     }
 
     @PreUpdate
@@ -82,5 +92,9 @@ public class Dispute {
 
     public enum DisputeStatus {
         待受理, 已受理, 调解中, 调解成功, 调解失败, 已撤回
+    }
+
+    public enum SourceChannel {
+        当事人申请, 排查发现, 法院委派, 其他部门转入
     }
 }

@@ -4,6 +4,7 @@ import com.mediation.dto.DisputeDTO;
 import com.mediation.entity.Dispute;
 import com.mediation.entity.Dispute.DisputeStatus;
 import com.mediation.entity.Dispute.DisputeType;
+import com.mediation.entity.Dispute.SourceChannel;
 import com.mediation.entity.Mediator;
 import com.mediation.entity.Mediator.MediatorStatus;
 import com.mediation.repository.DisputeRepository;
@@ -39,11 +40,21 @@ public class DisputeController {
             return ResponseEntity.badRequest().body(Map.of("error", "无效的纠纷类型"));
         }
 
+        SourceChannel sourceChannel = SourceChannel.当事人申请;
+        if (dto.getSourceChannel() != null && !dto.getSourceChannel().isEmpty()) {
+            try {
+                sourceChannel = SourceChannel.valueOf(dto.getSourceChannel());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", "无效的来源渠道"));
+            }
+        }
+
         String caseNo = generateCaseNo();
 
         Dispute dispute = Dispute.builder()
                 .caseNo(caseNo)
                 .disputeType(disputeType)
+                .sourceChannel(sourceChannel)
                 .applicantName(dto.getApplicantName())
                 .applicantPhone(dto.getApplicantPhone())
                 .applicantIdCard(dto.getApplicantIdCard())
@@ -63,6 +74,7 @@ public class DisputeController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String disputeType,
+            @RequestParam(required = false) String sourceChannel,
             @RequestParam(required = false) Long mediatorId) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -75,6 +87,9 @@ public class DisputeController {
         } else if (disputeType != null) {
             DisputeType dt = DisputeType.valueOf(disputeType);
             result = disputeRepository.findByDisputeType(dt, pageable);
+        } else if (sourceChannel != null) {
+            SourceChannel sc = SourceChannel.valueOf(sourceChannel);
+            result = disputeRepository.findBySourceChannel(sc, pageable);
         } else if (mediatorId != null) {
             result = disputeRepository.findByMediatorId(mediatorId, pageable);
         } else {
@@ -104,8 +119,10 @@ public class DisputeController {
         response.put("description", dispute.getDescription());
         response.put("amount", dispute.getAmount());
         response.put("mediatorId", dispute.getMediatorId());
+        response.put("sourceChannel", dispute.getSourceChannel());
         response.put("status", dispute.getStatus());
         response.put("result", dispute.getResult());
+        response.put("agreementNo", dispute.getAgreementNo());
         response.put("createdAt", dispute.getCreatedAt());
         response.put("updatedAt", dispute.getUpdatedAt());
 
@@ -198,6 +215,9 @@ public class DisputeController {
 
         dispute.setResult(result);
         dispute.setStatus(success ? DisputeStatus.调解成功 : DisputeStatus.调解失败);
+        if (success && dispute.getAgreementNo() == null) {
+            dispute.setAgreementNo(generateAgreementNo());
+        }
         disputeRepository.save(dispute);
 
         return ResponseEntity.ok(dispute);
@@ -241,6 +261,12 @@ public class DisputeController {
         }
         stats.put("byType", byType);
 
+        Map<String, Long> bySourceChannel = new LinkedHashMap<>();
+        for (SourceChannel sc : SourceChannel.values()) {
+            bySourceChannel.put(sc.name(), disputeRepository.countBySourceChannel(sc));
+        }
+        stats.put("bySourceChannel", bySourceChannel);
+
         return ResponseEntity.ok(stats);
     }
 
@@ -248,5 +274,11 @@ public class DisputeController {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String random = String.format("%04d", new Random().nextInt(10000));
         return "RM" + date + random;
+    }
+
+    private String generateAgreementNo() {
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String random = String.format("%04d", new Random().nextInt(10000));
+        return "XY" + date + random;
     }
 }
